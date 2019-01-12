@@ -1,4 +1,4 @@
-/**
+﻿/**
  *  Device Handler for Fortrezz WWA-01AA Temperature and Leak Sensor
  *
  *  Copyright 2015 SmartThings
@@ -30,7 +30,7 @@
  *  trigger an event when the temperature is reported during the wake up.
  */
 metadata {
-	definition (name: "FortrezZ WWA-01AA Temperature and Leak Sensor", namespace: "philh30", author: "philh30", runLocally: false, minHubCoreVersion: '000.017.0012', executeCommandsLocally: true, mnmn: "SmartThings", vid: "generic-leak") {
+	definition (name: "FortrezZ WWA-01AA", namespace: "philh30", author: "philh30", runLocally: false, minHubCoreVersion: '000.017.0012', executeCommandsLocally: true, mnmn: "SmartThings", vid: "generic-leak") {
 		capability "Water Sensor"
 		capability "Sensor"
 		capability "Battery"
