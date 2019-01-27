@@ -62,6 +62,12 @@ preferences {
     section("Text to include in message"){
     	input "msgStart","text", title: "Message text", description: "(ie. Honeywell Partition 1:)", required: false
     }
+    section("Send alerts for:"){
+    	input "msgAlarm", "bool", title: "Alarm Triggered", required: false, defaultValue: false
+        input "msgAlarmCancel", "bool", title: "Alarm Cancelled", required: false, defaultValue: false
+        input "msgArm", "bool", title: "Partition Armed", required: false, defaultValue: false
+        input "msgDisarm", "bool", title: "Partition Disarmed", required: false, defaultValue: false
+    }
 	/*section("Minimum time between messages (optional, defaults to every message)") {
 		input "frequency", "decimal", title: "Minutes", required: false
 	}*/
@@ -289,17 +295,25 @@ private handleStates(newStatus, stay, away, instant, disarm)
     {
     	switch (newStatus) {
     	case "disarmed":
-	    	sendMessage("${msg} disarmed")
+	    	if(msgDisarm){
+            	sendMessage("${msg} disarmed")
+            }
     		break
     	case "armed":
-	    	sendMessage("${msg} armed")
-    		break
+        	if(msgArm){
+	    		sendMessage("${msg} armed")
+    		}
+            break
     	case "alarm":
-    		sendMessage("${msg} alarm triggered")
-    		break
+    		if(msgAlarm){
+            	sendMessage("${msg} alarm triggered")
+    		}
+            break
         case "canceled":
-    		sendMessage("${msg} alarm canceled")
-    		break
+    		if(msgAlarmCancel){
+            	sendMessage("${msg} alarm canceled")
+    		}
+            break
     	default:
         	logger("Unhandled new alarm status: ${newStatus}","warn")
     	}
