@@ -85,7 +85,7 @@ metadata {
         input name: "closeOffset", type: "decimal", title: "Close offset", description: "The percentage from which shutter is displayerd as close"
         input name: "offset", type: "decimal", title: "offset", description: "This offset allow to correct the value returned by the device so it match real value"
 
-        /*section {
+        section {
             input (
                 type: "paragraph",
                 element: "paragraph",
@@ -120,7 +120,7 @@ metadata {
                         break
                 }
             }
-        } // section*/
+        } // section
     }
 }
 
@@ -351,6 +351,23 @@ def setLevel(level) {
 	], 10000)
 }
 
+def setLevel(String strLevel) {
+    def level = strLevel.toInteger()
+    if (invert) {
+        level = 100 - level
+    }
+    if(level > 99) level = 99
+    if (level <= (openOffset ?: 95) && level >= (closeOffset ?: 5)) {
+        level = level - (offset ?: 0)
+    }
+
+    log.debug("set level ${level} s")
+    secureSequence([
+        zwave.basicV1.basicSet(value: level),
+        zwave.switchMultilevelV1.switchMultilevelGet()
+	], 10000)
+}
+
 def configure() {
     log.debug("configure roller shutter")
     secureSequence([
@@ -383,7 +400,7 @@ def setSynced() {
 
 private secure(physicalgraph.zwave.Command cmd) {
 	if (state.sec) {
-		log.debug "Sending secure command"
+		log.debug "Sending secure command ${cmd}"
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
 	} else {
 		cmd.format()
@@ -397,26 +414,24 @@ private secureSequence(Collection commands, ...delayBetweenArgs) {
 
 private getParamsMd() {
     return [
-        [id:  3, size: 1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
-        name: "Reports type",
-        description: "0 – Blind position reports sent to the main controller using Z-Wave Command Class.\n" +
-    "1 - Blind position reports sent to the main controller using Fibar Command Class.\n" +
-    "Parameters value shoud be set to 1 if the module operates in Venetian Blind mode."],
-    [id:  10, size: 1, type: "number", range: "0..4", defaultValue: 0, required: false, readonly: false,
-        name: "Roller Shutter operating modes",
-        description: "0 - Roller Blind Mode, without positioning\n" +
-    "1 - Roller Blind Mode, with positioning\n" +
-    "2 - Venetian Blind Mode, with positioning\n" +
-    "3 - Gate Mode, without positioning\n" +
-    "4 - Gate Mode, with positioning"],
-    [id: 12, size:2, type: "number", range: "0..65535", defaultValue: 0, required: false, readonly: false,
-        name: "Time of full turn of the slat",
-        description: "In Venetian Blind mode (parameter 10 set to 2) the parameter determines time of full turn of the slats.\n" +
-    "In Gate Mode (parameter 10 set to 3 or 4) the parameter defines the COUNTDOWN time, i.e. the time period after which an open gate starts closing. In any other operating mode the parameter value is irrelevant.\n" +
-    "Value of 0 means the gate will not close automatically.\n" +
-    "Available settings: 0-65535 (0 - 655,35s)\n" +
-    "Default setting: 150 (1,5 s)"],
-    [id: 13, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
+        [id:  20, size: 1, type: "number", range: "0..2", defaultValue: 2, required: false, readonly: false,
+        name: "Switch type",
+        description: "This parameter defines how the device should treat the switch connected to the S1 and S2 terminals.\n" +
+    "If parameter 20 is set to 1 (toggle switch), change value of parameter 153 to 0 for slats to work properly.\n" +
+	"0 – momentary switches.\n" +
+    "1 - toggle switches.\n" +
+    "2 - single, momentary switch (the switch should be connected to S1 terminal)." ],
+    [id:  24, size: 1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
+        name: "Inputs orientation",
+        description: "This parameter allows reversing the operation of switches connected to S1 and S2 without changing the wiring.\n" +
+    "0 - default (S1 - 1st channel, S2 - 2nd channel)\n" +
+    "1 - reversed (S1 - 2nd channel, S2 - 1st channel)\n" ],
+    [id: 25, size:1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
+        name: "Outputs orientation",
+        description: "This parameter allows reversing the operation of Q1 and Q2 without changing the wiring (in case of invalid motor connection) to ensure proper operation.\n" +
+    "0 - default (Q1 - 1st channel, Q2 - 2nd channel)\n" +
+    "1 - reversed (Q1 - 2nd channel, Q2 - 1st channel)\n" ],
+/*    [id: 30, size:4, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
         name: "Set slats back to previous position",
         description: "In Venetian Blind Mode (parameter 10 set to 2) the parameter influences slats positioning in various situations. In any other operating mode the parameter value is irrelevant.\n" +
     "0 - Slats return to previously set position only in case of the main controller operation\n" +
@@ -464,13 +479,15 @@ private getParamsMd() {
     [id: 35, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
         name: "Managing slats in response to alarm.",
         description: "0 - Do not change slats position - slats return to the last set position\n" +
-    "1 - Set slats to their extreme position"],
-    [id: 40, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Power reports",
-        description: "Power level change that will result in new power value report being sent." +
-    "The parameter defines a change that needs to occur in order to trigger the report. The value is a percentage of the previous report.\n" +
-    "Power report threshold available settings: 1-100 (1-100%).\n" +
-    "Value of 0 means the reports are turned off."]
+    "1 - Set slats to their extreme position"], */
+    [id: 153, size:1, type: "number", range: "0..2", defaultValue: 1, required: false, readonly: false,
+        name: "Set slats back to previous position",
+        description: "For Venetian blinds (parameter 151 set to 2) the parameter determines slats positioning in various situations.\n" +
+        "The parameter is irrelevant for other modes.\n" +
+        "If parameter 20 is set to 1 (toggle switch), change value of parameter 153 to 0 for slats to work properly.\n" +
+    "0 – slats return to previously set position only in case of the main controller operation.\n" +
+    "1 – slats return to previously set position in case of the main controller operation, momentary switch operation, or when the limit switch is reached.\n" +
+    "2 – slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after receiving the Switch Multilevel Stop control frame."]
 
 ]
 }
