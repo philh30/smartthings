@@ -204,6 +204,9 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
     log.debug("Switch multilevel report: ${cmd.value}; Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def result = []
     if (cmd.value != null) {
+        if(cmd.value > 100) {
+        	log.error "${device.displayName} requires calibration. Position of ${cmd.value}% reported."
+        }
         def level = correctLevel(cmd.value)
         result << createEvent(name: "level", value: level, unit: "%")   
         if (device.currentValue('windowShade') == "opening" || device.currentValue('windowShade') == "closing") {
@@ -261,7 +264,7 @@ def off() {
 def stop() {
     log.debug "Stop - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}"
 	secureSequence([
-    	zwave.switchMultilevelV1.switchMultilevelStopLevelChange(),
+    	zwave.switchMultilevelV3.switchMultilevelStopLevelChange(),
     	zwave.switchMultilevelV3.switchMultilevelGet()
     ], 2000)
 }
@@ -308,14 +311,16 @@ def close() {
 
 def privateOpen() {
     secureSequence([
-    	zwave.basicV1.basicSet(value: 0xFF),
+    	//zwave.basicV1.basicSet(value: 0xFF),
+        zwave.switchMultilevelV3.switchMultilevelSet(value: 99, dimmingDuration: 0x00),
     	zwave.switchMultilevelV3.switchMultilevelGet()
     ], 2000)
 }
 
 def privateClose() {
     secureSequence([
-        zwave.basicV1.basicSet(value: 0),
+        //zwave.basicV1.basicSet(value: 0),
+        zwave.switchMultilevelV3.switchMultilevelSet(value: 0, dimmingDuration: 0x00),
         zwave.switchMultilevelV3.switchMultilevelGet()
     ], 2000)
 }
@@ -350,8 +355,9 @@ def setLevel(level) {
 
     log.debug("Set level ${level} - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
-        zwave.basicV1.basicSet(value: level),
-        zwave.switchMultilevelV1.switchMultilevelGet()
+        //zwave.basicV1.basicSet(value: level),
+        zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00),
+        zwave.switchMultilevelV3.switchMultilevelGet()
 	], 10000)
 }
 
@@ -367,16 +373,17 @@ def setLevel(String strLevel) {
 
     log.debug("Set level ${level} s - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
-        zwave.basicV1.basicSet(value: level),
-        zwave.switchMultilevelV1.switchMultilevelGet()
+        //zwave.basicV1.basicSet(value: level),
+        zwave.switchMultilevelV3.switchMultilevelSet(value: level, dimmingDuration: 0x00),
+        zwave.switchMultilevelV3.switchMultilevelGet()
 	], 10000)
 }
 
 def configure() {
     log.debug("Configure roller shutter - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
-        zwave.configurationV1.configurationSet(parameterNumber: 29, size: 1, scaledConfigurationValue: 1),  // start calibration
-        zwave.switchMultilevelV1.switchMultilevelGet(),
+        zwave.configurationV1.configurationSet(parameterNumber: 150, size: 1, scaledConfigurationValue: 2),  // start calibration
+        zwave.switchMultilevelV3.switchMultilevelGet(),
         zwave.meterV2.meterGet(scale: 0),
         zwave.meterV2.meterGet(scale: 2),
 	], 500)
