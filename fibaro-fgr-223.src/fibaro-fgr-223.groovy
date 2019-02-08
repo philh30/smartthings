@@ -125,10 +125,11 @@ metadata {
 }
 
 def parse(String description) {
-    log.debug("parse ${description}")
+    log.debug("New event to parse: ${description}")
     def result = null
     def cmd = zwave.parse(description, [0x20: 1, 0x26: 3, 0x70: 1, 0x32:3])
     if (cmd) {
+    	log.debug "Parsed event: ${cmd}"
         result = zwaveEvent(cmd)
         if (result) {
             log.debug("Dispatch events ${result}")
@@ -179,40 +180,40 @@ def createSwitchEvent(value) {
 def zwaveEvent(physicalgraph.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
 	def encapsulatedCommand = cmd.encapsulatedCommand([0x20: 1, 0x26: 3, 0x70: 1, 0x32:3])
 	state.sec = 1
-    log.debug "Secure message"
+    log.debug "Secure message parsed: ${encapsulatedCommand}"
 	if (encapsulatedCommand) {
 		zwaveEvent(encapsulatedCommand)
 	}
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
-    logger.debug("basic report ${cmd}")
+    log.debug("Basic report: ${cmd.value}; Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def result = []
     if (cmd.value != null) {
         def level = correctLevel(cmd.value)
         result << createEvent(name: "level", value: level, unit: "%")  
         if (device.currentValue('windowShade') == "opening" || device.currentValue('windowShade') == "closing") {
-        	result << response([zwave.meterV2.meterGet(scale: 2).format()])
+        	result << response([secure(zwave.meterV2.meterGet(scale: 2))])
         }
     }
-    log.debug("basic result ${result}")
+    //log.debug("Basic result: ${result}")
     return result
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelReport cmd) {
-    log.debug("switch multi level report ${cmd.value}")
+    log.debug("Switch multilevel report: ${cmd.value}; Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def result = []
     if (cmd.value != null) {
         def level = correctLevel(cmd.value)
         result << createEvent(name: "level", value: level, unit: "%")   
         if (device.currentValue('windowShade') == "opening" || device.currentValue('windowShade') == "closing") {
-        	result << response([zwave.meterV2.meterGet(scale: 2).format()])
+        	result << response([secure(zwave.meterV2.meterGet(scale: 2))])
         }
         else {
             result << createWindowShadeEvent(level) 
         }
     }
-    log.debug("switch result ${result}")
+    //log.debug("switch result ${result}")
     return result
 }
 
@@ -221,16 +222,17 @@ def zwaveEvent(physicalgraph.zwave.Command cmd) {
 }
 
 def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
+    log.debug "Meter report: ${cmd.meterType} ${cmd.scale} ${cmd.scaledMeterValue}; Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}"
     if (cmd.meterType == 1) {
         if (cmd.scale == 2) {
             def result = []
             result << createEvent(name: "power", value: Math.round(cmd.scaledMeterValue), unit: "W")
             if (cmd.scaledMeterValue < 1.0) {
               result << createWindowShadeEvent(device.currentValue('level'))
-              result << response(["delay 500", zwave.switchMultilevelV3.switchMultilevelGet().format()])
+              result << response(["delay 500", secure(zwave.switchMultilevelV3.switchMultilevelGet())])
             }
             else {
-              result << response(["delay 2000", zwave.switchMultilevelV3.switchMultilevelGet().format()])
+              result << response(["delay 2000", secure(zwave.switchMultilevelV3.switchMultilevelGet())])
             }
             log.debug("power result ${result}")
             return result
@@ -257,7 +259,7 @@ def off() {
 }
 
 def stop() {
-    logger.debug("stop")
+    log.debug "Stop - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}"
 	secureSequence([
     	zwave.switchMultilevelV1.switchMultilevelStopLevelChange(),
     	zwave.switchMultilevelV3.switchMultilevelGet()
@@ -265,6 +267,7 @@ def stop() {
 }
 
 def up() {
+	log.debug("Up - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def currentWindowShade = device.currentValue('windowShade')
     if (currentWindowShade == "opening" || currentWindowShade == "closing") {      
         return stop()        
@@ -273,6 +276,7 @@ def up() {
 }
 
 def down() {
+    log.debug("Down - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def currentWindowShade = device.currentValue('windowShade')
     if (currentWindowShade == "opening" || currentWindowShade == "closing") {
         return stop()        
@@ -281,7 +285,7 @@ def down() {
 }
 
 def open() {
-    logger.debug("open")
+    log.debug("Open - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     sendEvent(name: "windowShade", value: "opening")
     if (invert) {
         return privateClose()
@@ -292,7 +296,7 @@ def open() {
 }
 
 def close() {
-    logger.debug("close")
+    log.debug("Close - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     sendEvent(name: "windowShade", value: "closing")    
     if (invert) {
         return privateOpen()
@@ -328,7 +332,7 @@ def poll() {
 }
 
 def refresh() {
-    log.debug("refresh")
+    log.debug("Refresh - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
         zwave.switchMultilevelV3.switchMultilevelGet(),
         zwave.meterV2.meterGet(scale: 2)
@@ -344,7 +348,7 @@ def setLevel(level) {
         level = level - (offset ?: 0)
     }
 
-    log.debug("set level ${level}")
+    log.debug("Set level ${level} - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
         zwave.basicV1.basicSet(value: level),
         zwave.switchMultilevelV1.switchMultilevelGet()
@@ -361,7 +365,7 @@ def setLevel(String strLevel) {
         level = level - (offset ?: 0)
     }
 
-    log.debug("set level ${level} s")
+    log.debug("Set level ${level} s - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
         zwave.basicV1.basicSet(value: level),
         zwave.switchMultilevelV1.switchMultilevelGet()
@@ -369,7 +373,7 @@ def setLevel(String strLevel) {
 }
 
 def configure() {
-    log.debug("configure roller shutter")
+    log.debug("Configure roller shutter - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     secureSequence([
         zwave.configurationV1.configurationSet(parameterNumber: 29, size: 1, scaledConfigurationValue: 1),  // start calibration
         zwave.switchMultilevelV1.switchMultilevelGet(),
@@ -379,7 +383,7 @@ def configure() {
 }
 
 def sync() {
-    log.debug("sync roller shutter")
+    log.debug("Sync roller shutter - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     def cmds = []
     sendEvent(name: "syncStatus", value: "syncing", isStateChange: true)
     getParamsMd().findAll( {!it.readonly} ).each { // Exclude readonly parameters.
@@ -388,19 +392,22 @@ def sync() {
             cmds << secure(zwave.configurationV1.configurationGet(parameterNumber: it.id))
         }
     }
-    log.debug("send cmds ${cmds}")
-    runIn(0.5 * cmds.size(), setSynced)
-    delayBetween(cmds, 500)
+    if(cmds) {
+    	log.debug("Send configuration parameters ${cmds}")
+    	runIn(0.5 * cmds.size(), setSynced)
+    	delayBetween(cmds, 500)
+    } else {
+    	log.debug "No configuration parameters set"
+    }
 }
 
 def setSynced() {
-    log.debug("Synced")
+    log.debug("Synced - Shade state: ${device.currentValue('windowShade')}; Shade level: ${device.currentValue('level')}")
     sendEvent(name: "syncStatus", value: "synced", isStateChange: true)
 }
 
 private secure(physicalgraph.zwave.Command cmd) {
 	if (state.sec) {
-		log.debug "Sending secure command ${cmd}"
         zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
 	} else {
 		cmd.format()
@@ -408,7 +415,6 @@ private secure(physicalgraph.zwave.Command cmd) {
 }
 
 private secureSequence(Collection commands, ...delayBetweenArgs) {
-	log.debug "Sending secure sequence"
     delayBetween(commands.collect{ secure(it) }, *delayBetweenArgs)
 }
 
@@ -431,55 +437,50 @@ private getParamsMd() {
         description: "This parameter allows reversing the operation of Q1 and Q2 without changing the wiring (in case of invalid motor connection) to ensure proper operation.\n" +
     "0 - default (Q1 - 1st channel, Q2 - 2nd channel)\n" +
     "1 - reversed (Q1 - 2nd channel, Q2 - 1st channel)\n" ],
-/*    [id: 30, size:4, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Set slats back to previous position",
-        description: "In Venetian Blind Mode (parameter 10 set to 2) the parameter influences slats positioning in various situations. In any other operating mode the parameter value is irrelevant.\n" +
-    "0 - Slats return to previously set position only in case of the main controller operation\n" +
-    "1 - Slats return to previously set position in case of the main controller operation, momentary switch operation, or when the limit switch is reached.\n" +
-    "2 - Slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after " +
-    " receiving a “STOP” control frame (Switch Multilevel Stop)."],
-    [id: 14, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Switch type",
-        description: "The parameter settings are relevant for Roller Blind Mode and Venetian Blind Mode (parameter 10 set to 0, 1, 2).\n" +
-    "0 - Momentary switches\n" +
-    "1 - Toggle switches\n" +
-    "2 - Single, momentary switch. (The switch should be connected to S1 terminal)"],
-    [id: 18, size:1, type: "number", range: "0..255", defaultValue: 0, required: false, readonly: false,
-        name: "Motor operation detection.",
-        description: "Power threshold to be interpreted as reaching a limit switch. \n" +
-    "Available settings: 0 - 255 (1-255 W)\n" +
-    "The value of 0 means reaching a limit switch will not be detected \n" +
-    "Default setting: 10 (10W)."],
-    [id: 22, size:2, type: "number", range: "0..65535", defaultValue: 0, required: false, readonly: false,
-        name: "Motor operation time.",
-        description: "Time period for the motor to continue operation. \n" +
-    "Available settings: 0 – 65535 (0 – 65535s)\n" +
-    "The value of 0 means the function is disabled.\n" +
-    "Default setting: 240 (240s. – 4 minutes)"],
-    [id: 30, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Response to general alarm",
-        description: "0 - No reaction.\n" +
-    "1 - Open blind.\n" +
-    "2 - Close blind."],
-    [id: 31, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Response to flooding alarm",
-        description: "0 - No reaction.\n" +
-    "1 - Open blind.\n" +
-    "2 - Close blind."],
-    [id: 32, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Response to smoke, CO or CO2 alarm",
-        description: "0 - No reaction.\n" +
-    "1 - Open blind.\n" +
-    "2 - Close blind."],
-    [id: 33, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Response to temperature alarm",
-        description: "0 - No reaction.\n" +
-    "1 - Open blind.\n" +
-    "2 - Close blind."],
-    [id: 35, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
-        name: "Managing slats in response to alarm.",
-        description: "0 - Do not change slats position - slats return to the last set position\n" +
-    "1 - Set slats to their extreme position"], */
+    [id: 60, size:1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
+        name: "Measuring power consumed by the device itself",
+        description: "This parameter determines whether the power metering should include the amount of active power consumed by the device itself.\n" +
+    "0 - function inactive\n" +
+    "1 - function active"],
+    [id: 61, size:2, type: "number", range: "0..500", defaultValue: 15, required: false, readonly: false,
+        name: "Power reports - on change",
+        description: "This parameter determines the minimum change in consumed power that will result in sending new power report to the main controller. For loads under 50W, the parameter is not relevant and reports are sent every 5W change. Power report are sent no often then every 30 seconds.\n" +
+    "0 - reports are disabled\n" +
+    "1-500 -  (1-500%) - change in power"],
+    [id: 62, size:2, type: "number", range: "0..32400", defaultValue: 3600, required: false, readonly: false,
+        name: "Power reports - periodic",
+        description: "This parameter determines in what time intervals the periodic power reports are sent to the main controller. Periodic reports do not depend on power change (parameter 61).\n" +
+    "0 - periodic reports are disabled\n" +
+    "30-32400 - (30-32400s) - report interval"],
+    [id: 65, size:2, type: "number", range: "0..500", defaultValue: 10, required: false, readonly: false,
+        name: "Energy reports - on change",
+        description: "This parameter determines the minimum change in consumed energy that will result in sending new energy report to the main controller.\n" +
+    "0 - reports are disabled\n" +
+    "1-500 - (0.01 - 5 kWh) - change in energy"],
+    [id: 66, size:2, type: "number", range: "0..32400", defaultValue: 3600, required: false, readonly: false,
+        name: "Energy reports - periodic",
+        description: "This parameter determines in what time intervals the periodic energy reports are sent to the main controller. Periodic reports do not depend on energy change (parameter 65).\n" +
+    "0 - periodic reports are disabled.\n" +
+    "30-32400 - (30-32400s) - report interval"],
+    [id: 150, size:1, type: "number", range: "0..2", defaultValue: 0, required: false, readonly: false,
+        name: "Force calibration",
+        description: "By setting this parameter to 2 the device enters the calibration mode. The parameter relevant only if the device is set to work in positioning mode (parameter 151 set to 1, 2 or 4).\n" +
+    "0 - device is not calibrated\n" +
+    "1 - device is calibrated\n" +
+    "2 - force device calibration"],
+    [id: 151, size:1, type: "number", range: "1..6", defaultValue: 1, required: false, readonly: false,
+        name: "Operating mode",
+        description: "This parameter allows adjusting operation according to the connected device\n" +
+    "1 – roller blind (with positioning) \n" +
+    "2 – Venetian blind (with positioning)\n" +
+    "3 – gate (without positioning)\n" +
+    "4 – gate (with positioning)\n" +
+    "5 – roller blind with built-in driver\n" +
+    "6 – roller blind with built-in driver (impulse)"],
+    [id: 152, size:4, type: "number", range: "0..90000", defaultValue: 150, required: false, readonly: false,
+        name: "Venetian blind - time of full turn of the slats ",
+        description: "For Venetian blinds (parameter 151 set to 2) the parameter determines time of full turn cycle of the slats. For gates (parameter 151 set to 3 or 4) the parameter determines time after which open gate will start closing automatically (if set to 0, gate will not close). The parameter is irrelevant for other modes.\n" +
+    " 0-90000 - (0 - 900s, every 0.01s) - time of turn "],
     [id: 153, size:1, type: "number", range: "0..2", defaultValue: 1, required: false, readonly: false,
         name: "Set slats back to previous position",
         description: "For Venetian blinds (parameter 151 set to 2) the parameter determines slats positioning in various situations.\n" +
@@ -487,7 +488,24 @@ private getParamsMd() {
         "If parameter 20 is set to 1 (toggle switch), change value of parameter 153 to 0 for slats to work properly.\n" +
     "0 – slats return to previously set position only in case of the main controller operation.\n" +
     "1 – slats return to previously set position in case of the main controller operation, momentary switch operation, or when the limit switch is reached.\n" +
-    "2 – slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after receiving the Switch Multilevel Stop control frame."]
+    "2 – slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after receiving the Switch Multilevel Stop control frame."],
+    [id: 154, size:2, type: "number", range: "0..600", defaultValue: 10, required: false, readonly: false,
+        name: "Delay motor stop after reaching end switch",
+        description: "For blinds (parameter 151 set to 1, 2, 5 or 6) the parameter determines the time after which the motor will be stopped after end switch contacts are closed. For gates (parameter 151 set to 3 or 4) the parameter determines time after which the gate will start closing automatically if S2 contacts are  opened (if set to 0, gate will not close).\n" +
+    "0-600 - (0 - 60s) - time"],
+    [id: 155, size:2, type: "number", range: "0..255", defaultValue: 10, required: false, readonly: false,
+        name: "Motor operation detection",
+        description: "Power threshold to be interpreted as reaching a limit switch.\n" +
+    "0 - reaching a limit switch will not be detected\n" +
+    "1-255 - (1-255W) - report interval"],
+    [id: 156, size:4, type: "number", range: "1..90000", defaultValue: 6000, required: false, readonly: false,
+        name: "Time of up movement",
+        description: "This parameter determines the time needed for roller blinds to reach the top. For modes with positioning value is set automatically during calibration, otherwise it must be set manually.\n" +
+    "1-90000 - (0.01 - 900.00s, every 0.01s) - movement time"],
+    [id: 157, size:4, type: "number", range: "1..90000", defaultValue: 6000, required: false, readonly: false,
+        name: "Time of down movement",
+        description: "This parameter determines time needed for roller blinds to reach the bottom. For modes with positioning value is set automatically during calibration, otherwise it must be set manually.\n" +
+    "1-90000 - (0.01 - 900.00s, every 0.01s) - movement time"]
 
 ]
 }
