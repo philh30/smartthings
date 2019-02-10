@@ -36,7 +36,7 @@ metadata {
         command "up"   
         command "down"   
 
-        fingerprint inClusters: "0x26,0x32"
+        fingerprint mfr:"010F", prod:"0303", model:"1000", deviceJoinName: "Fibaro Roller Shutter 3"
     }
 
     tiles(scale: 2) {
