@@ -17,6 +17,7 @@
 metadata {
     definition (name: "Fibaro FGR-223", namespace: "philh30", author: "philh30") {
         capability "Sensor"
+		capability "Contact Sensor"
         capability "Actuator"
 
         capability "Switch"
@@ -157,13 +158,22 @@ def correctLevel(value) {
 
 def createWindowShadeEvent(value) {
     def theWindowShade = "partially open"
+	def contactValue = "open"
+	def switchValue = "on"
     if (value >= (openOffset ?: 95)) {
         theWindowShade = "open"
+		contactValue = "open"
+		switchValue = "on"
     }
     if (value <= (closeOffset ?: 5)) {
         theWindowShade = "closed"
+		contactValue = "closed"
+		switchValue = "off"
     }
-    return createEvent(name: "windowShade", value: theWindowShade)
+	def evt1 = createEvent(name: "windowShade", value: theWindowShade)
+	def evt2 = createEvent(name: "contact", value: contactValue)
+	def evt3 = createEvent(name: "switch", value: switchValue)
+    return [evt1, evt2, evt3]
 }
 
 def createSwitchEvent(value) {
@@ -431,7 +441,7 @@ private getParamsMd() {
         name: "Switch type",
         description: "This parameter defines how the device should treat the switch connected to the S1 and S2 terminals.\n" +
     "If parameter 20 is set to 1 (toggle switch), change value of parameter 153 to 0 for slats to work properly.\n" +
-	"0 – momentary switches.\n" +
+	"0 - momentary switches.\n" +
     "1 - toggle switches.\n" +
     "2 - single, momentary switch (the switch should be connected to S1 terminal)." ],
     [id:  24, size: 1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
@@ -444,6 +454,9 @@ private getParamsMd() {
         description: "This parameter allows reversing the operation of Q1 and Q2 without changing the wiring (in case of invalid motor connection) to ensure proper operation.\n" +
     "0 - default (Q1 - 1st channel, Q2 - 2nd channel)\n" +
     "1 - reversed (Q1 - 2nd channel, Q2 - 1st channel)\n" ],
+
+//Parameters 30,31,32,33,34,40,41 not included at this time since they're a bit more complex to include
+
     [id: 60, size:1, type: "number", range: "0..1", defaultValue: 0, required: false, readonly: false,
         name: "Measuring power consumed by the device itself",
         description: "This parameter determines whether the power metering should include the amount of active power consumed by the device itself.\n" +
@@ -478,12 +491,12 @@ private getParamsMd() {
     [id: 151, size:1, type: "number", range: "1..6", defaultValue: 1, required: false, readonly: false,
         name: "Operating mode",
         description: "This parameter allows adjusting operation according to the connected device\n" +
-    "1 – roller blind (with positioning) \n" +
-    "2 – Venetian blind (with positioning)\n" +
-    "3 – gate (without positioning)\n" +
-    "4 – gate (with positioning)\n" +
-    "5 – roller blind with built-in driver\n" +
-    "6 – roller blind with built-in driver (impulse)"],
+    "1 - roller blind (with positioning) \n" +
+    "2 - Venetian blind (with positioning)\n" +
+    "3 - gate (without positioning)\n" +
+    "4 - gate (with positioning)\n" +
+    "5 - roller blind with built-in driver\n" +
+    "6 - roller blind with built-in driver (impulse)"],
     [id: 152, size:4, type: "number", range: "0..90000", defaultValue: 150, required: false, readonly: false,
         name: "Venetian blind - time of full turn of the slats ",
         description: "For Venetian blinds (parameter 151 set to 2) the parameter determines time of full turn cycle of the slats. For gates (parameter 151 set to 3 or 4) the parameter determines time after which open gate will start closing automatically (if set to 0, gate will not close). The parameter is irrelevant for other modes.\n" +
@@ -493,9 +506,9 @@ private getParamsMd() {
         description: "For Venetian blinds (parameter 151 set to 2) the parameter determines slats positioning in various situations.\n" +
         "The parameter is irrelevant for other modes.\n" +
         "If parameter 20 is set to 1 (toggle switch), change value of parameter 153 to 0 for slats to work properly.\n" +
-    "0 – slats return to previously set position only in case of the main controller operation.\n" +
-    "1 – slats return to previously set position in case of the main controller operation, momentary switch operation, or when the limit switch is reached.\n" +
-    "2 – slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after receiving the Switch Multilevel Stop control frame."],
+    "0 - slats return to previously set position only in case of the main controller operation.\n" +
+    "1 - slats return to previously set position in case of the main controller operation, momentary switch operation, or when the limit switch is reached.\n" +
+    "2 - slats return to previously set position in case of the main controller operation, momentary switch operation, when the limit switch is reached or after receiving the Switch Multilevel Stop control frame."],
     [id: 154, size:2, type: "number", range: "0..600", defaultValue: 10, required: false, readonly: false,
         name: "Delay motor stop after reaching end switch",
         description: "For blinds (parameter 151 set to 1, 2, 5 or 6) the parameter determines the time after which the motor will be stopped after end switch contacts are closed. For gates (parameter 151 set to 3 or 4) the parameter determines time after which the gate will start closing automatically if S2 contacts are  opened (if set to 0, gate will not close).\n" +
