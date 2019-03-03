@@ -158,12 +158,20 @@ def correctLevel(value) {
 
 def createWindowShadeEvent(value) {
     def theWindowShade = "partially open"
+    def contactValue = "open"
+    def switchValue = "on"
     if (value >= (openOffset ?: 95)) {
         theWindowShade = "open"
+        contactValue = "open"
+        switchValue = "on"
     }
     if (value <= (closeOffset ?: 5)) {
         theWindowShade = "closed"
+        contactValue = "closed"
+        switchValue = "off"
     }
+    sendEvent(name: "contact", value: contactValue)
+    sendEvent(name: "switch", value: switchValue)
     return createEvent(name: "windowShade", value: theWindowShade)
 }
 
