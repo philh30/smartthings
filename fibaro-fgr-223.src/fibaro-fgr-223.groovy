@@ -170,9 +170,12 @@ def createWindowShadeEvent(value) {
         contactValue = "closed"
         switchValue = "off"
     }
-    sendEvent(name: "contact", value: contactValue)
-    sendEvent(name: "switch", value: switchValue)
-    return createEvent(name: "windowShade", value: theWindowShade)
+	log.debug "Updating windowShade state to ${theWindowShade}"
+	sendEvent(name: "windowShade", value: theWindowShade)
+	log.debug "Updating contactSensor state to ${contactValue}"
+	sendEvent(name: "contact", value: contactValue, displayed: false)
+	log.debug "Updating switch state to ${switchValue}"
+    return createEvent(name: "switch", value: switchValue, displayed: false)
 }
 
 def createSwitchEvent(value) {
