@@ -203,7 +203,7 @@ def zwaveEvent(physicalgraph.zwave.commands.basicv1.BasicReport cmd) {
     def result = []
     if (cmd.value != null) {
         def level = correctLevel(cmd.value)
-        result << createEvent(name: "level", value: level, unit: "%")  
+        sendEvent(name: "level", value: level, unit: "%")  
         if (device.currentValue('windowShade') == "opening" || device.currentValue('windowShade') == "closing") {
         	result << response([secure(zwave.meterV2.meterGet(scale: 2))])
         }
@@ -220,7 +220,7 @@ def zwaveEvent(physicalgraph.zwave.commands.switchmultilevelv3.SwitchMultilevelR
         	log.error "${device.displayName} requires calibration. Position of ${cmd.value}% reported."
         }
         def level = correctLevel(cmd.value)
-        result << createEvent(name: "level", value: level, unit: "%")   
+        sendEvent(name: "level", value: level, unit: "%")   
         if (device.currentValue('windowShade') == "opening" || device.currentValue('windowShade') == "closing") {
         	result << response([secure(zwave.meterV2.meterGet(scale: 2))])
         }
