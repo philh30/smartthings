@@ -15,7 +15,7 @@
  */
 
 metadata {
-    definition (name: "Fibaro FGR-223", namespace: "philh30", author: "philh30") {
+    definition (name: "Fibaro FGR-223", namespace: "philh30", author: "philh30", ocfDeviceType: "oic.d.blind") {
         capability "Sensor"
         capability "Contact Sensor"
         capability "Actuator"
@@ -262,7 +262,7 @@ def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport 
 }
 
 def updated() {
-    setSynced();
+    sync();
 }
 
 def on() {
