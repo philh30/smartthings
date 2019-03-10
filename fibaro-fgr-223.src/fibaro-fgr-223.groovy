@@ -15,7 +15,7 @@
  */
 
 metadata {
-    definition (name: "Fibaro FGR-223", namespace: "philh30", author: "philh30", ocfDeviceType: "oic.d.blind") {
+    definition (name: "Fibaro FGR-223", namespace: "philh30", author: "philh30", ocfDeviceType: "oic.d.blind", vid: "generic-shade") {
         capability "Sensor"
         capability "Contact Sensor"
         capability "Actuator"
@@ -82,16 +82,16 @@ metadata {
 
     preferences {
         input name: "invert", type: "bool", title: "Invert up/down", description: "Invert up and down actions"
-        input name: "openOffset", type: "decimal", title: "Open offset", description: "The percentage from which shutter is displayerd as open"
-        input name: "closeOffset", type: "decimal", title: "Close offset", description: "The percentage from which shutter is displayerd as close"
-        input name: "offset", type: "decimal", title: "offset", description: "This offset allow to correct the value returned by the device so it match real value"
+        input name: "openOffset", type: "decimal", title: "Open offset", description: "The percentage from which shutter is displayed as open"
+        input name: "closeOffset", type: "decimal", title: "Close offset", description: "The percentage from which shutter is displayed as closed"
+        input name: "offset", type: "decimal", title: "offset", description: "This offset will correct the value returned by the device so it matches the real value"
 
         section {
             input (
                 type: "paragraph",
                 element: "paragraph",
                 title: "DEVICE PARAMETERS:",
-                description: "Device parameters are used to customise the physical device. " +
+                description: "Device parameters are used to customize the physical device. " +
             "Refer to the product documentation for a full description of each parameter."
         )
 
@@ -259,6 +259,18 @@ def zwaveEvent(physicalgraph.zwave.commands.meterv3.MeterReport cmd) {
 
 def zwaveEvent(physicalgraph.zwave.commands.configurationv1.ConfigurationReport cmd) {
     log.debug("zwaveEvent(): Configuration Report received: ${cmd}")
+	if (cmd.parameterNumber==150) {
+		try {
+			device.updateSetting("configParam150",cmd.scaledConfigurationValue)
+            if (cmd.scaledConfigurationValue==0) log.debug "Calibration report received - device not calibrated. Updating parameter ${cmd.parameterNumber} from ${configParam150} to ${cmd.scaledConfigurationValue}."
+            if (cmd.scaledConfigurationValue==1) log.debug "Calibration report received - device is calibrated. Updating parameter ${cmd.parameterNumber} from ${configParam150} to ${cmd.scaledConfigurationValue}."
+            if (cmd.scaledConfigurationValue==2) log.debug "Calibration report received - device is calibrating. Updating parameter ${cmd.parameterNumber} from ${configParam150} to ${cmd.scaledConfigurationValue}."
+        } catch (e) {
+        	if (cmd.scaledConfigurationValue==0) log.debug "Calibration report received - device not calibrated."
+            if (cmd.scaledConfigurationValue==1) log.debug "Calibration report received - device is calibrated."
+            if (cmd.scaledConfigurationValue==2) log.debug "Calibration report received - device is calibrating."
+        }
+	}
 }
 
 def updated() {
